@@ -76,18 +76,15 @@ require_once dirname(__DIR__) . '/includes/header.php';
 
                 <div class="station-body">
                     <?php
-                    // Get charging points for this station
-                    $chargingPoints = getStationChargingPoints($station['station_id']);
-                    $availablePoints = array_filter($chargingPoints, function($point) {
-                        return ($point['status'] ?? 'not-available') === 'available';
-                    });
-                    $availableCount = count($availablePoints);
-                    $totalCount = count($chargingPoints);
-                    $availabilityPercentage = $totalCount > 0 ? ($availableCount / $totalCount) * 100 : 0;
+                    // Get ports for this station
+                    $ports = getStationPorts($station['station_id']);
+                    $totalPorts = $ports[0]['total_ports'] ?? 0;
+                    $availablePorts = $ports[0]['available_ports'] ?? 0;
+                    $availabilityPercentage = $totalPorts > 0 ? ($availablePorts / $totalPorts) * 100 : 0;
                     ?>
 
                     <div class="station-availability">
-                        <span><?= $availableCount ?> of <?= $totalCount ?> available</span>
+                        <span><?= $availablePorts ?> of <?= $totalPorts ?> ports available</span>
                         <div class="availability-bar">
                             <div class="availability-progress"
                                  style="width: <?= $availabilityPercentage ?>%;"
@@ -97,14 +94,14 @@ require_once dirname(__DIR__) . '/includes/header.php';
                         <span><?= round($availabilityPercentage) ?>%</span>
                     </div>
 
-                    <div class="charging-points-list">
-                        <h4>Charging Points</h4>
-                        <div class="points-grid">
-                            <?php foreach ($chargingPoints as $point): ?>
-                                <div class="point-item <?= $point['status'] ?? 'unknown' ?>">
-                                    <div class="point-status">
+                    <div class="ports-list">
+                        <h4>Charging Ports</h4>
+                        <div class="ports-grid">
+                            <?php foreach ($ports as $port): ?>
+                                <div class="port-item">
+                                    <div class="port-status <?= $port['state'] ?>">
                                         <span class="status-dot"></span>
-                                        <?= ucfirst($point['status'] ?? 'unknown') ?>
+                                        Port <?= $port['port_id'] ?>: <?= ucfirst($port['state']) ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -114,18 +111,18 @@ require_once dirname(__DIR__) . '/includes/header.php';
 
                 <div class="station-footer">
                     <div class="station-actions">
-                        <?php if ($availableCount > 0 && isLoggedIn()): ?>
+                        <?php if ($availablePorts > 0 && isLoggedIn()): ?>
                             <a href="<?= APP_URL ?>/pages/bookings.php?station_id=<?= $station['station_id'] ?>"
                                class="btn btn-primary btn-sm">
                                 <i class="fas fa-calendar-check"></i> Book Now
                             </a>
-                        <?php elseif ($availableCount > 0): ?>
+                        <?php elseif ($availablePorts > 0): ?>
                             <a href="<?= APP_URL ?>/pages/login.php" class="btn btn-primary btn-sm">
                                 <i class="fas fa-sign-in-alt"></i> Login to Book
                             </a>
                         <?php else: ?>
                             <button class="btn btn-secondary btn-sm" disabled>
-                                <i class="fas fa-times-circle"></i> No Available Points
+                                <i class="fas fa-times-circle"></i> No Available Ports
                             </button>
                         <?php endif; ?>
                     </div>
@@ -214,38 +211,43 @@ require_once dirname(__DIR__) . '/includes/header.php';
         margin-top: 1.85rem;
     }
 
-    .charging-points-list {
+    .ports-list {
         margin-top: var(--space-4);
     }
 
-    .points-grid {
+    .ports-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--space-3);
         margin-top: var(--space-3);
     }
 
-    .point-item {
+    .port-item {
         background-color: var(--gray-100);
         border-radius: var(--radius-md);
         padding: var(--space-3);
     }
 
-    .point-item.available {
-        background-color: var(--success);
-        color: var(--white);
-    }
-
-    .point-item.not-available {
-        background-color: var(--error);
-        color: var(--white);
-    }
-
-    .point-status {
+    .port-status {
         display: flex;
         align-items: center;
         gap: var(--space-2);
-        margin-bottom: var(--space-2);
+        font-size: 0.875rem;
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
+        background-color: var(--white);
+    }
+
+    .port-status.available {
+        color: var(--success);
+    }
+
+    .port-status.unavailable {
+        color: var(--error);
+    }
+
+    .port-status.reserved {
+        color: var(--warning);
     }
 
     .status-dot {
@@ -255,17 +257,13 @@ require_once dirname(__DIR__) . '/includes/header.php';
         background-color: currentColor;
     }
 
-    .point-info {
-        font-size: 0.875rem;
-    }
-
     @media (max-width: 768px) {
         #station-filter-form button {
             margin-top: var(--space-3);
             width: 100%;
         }
 
-        .points-grid {
+        .ports-grid {
             grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         }
     }

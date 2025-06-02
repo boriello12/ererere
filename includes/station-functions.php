@@ -25,20 +25,20 @@ function getStationDetails($stationId) {
 }
 
 /**
- * Get all charging points with their ports for a station
+ * Get all ports for a station
  *
  * @param int $stationId Station ID
- * @return array Array of charging points with their ports
+ * @return array Array of ports with their status
  */
-function getStationChargingPoints($stationId) {
-    $sql = "SELECT cp.charging_point_id, 
-                   GROUP_CONCAT(p.status) as port_states,
-                   COUNT(p.port_id) as total_ports,
-                   SUM(CASE WHEN p.status = 'available' THEN 1 ELSE 0 END) as available_ports
-            FROM Charging_Points cp
-            LEFT JOIN Ports p ON cp.charging_point_id = p.charging_point_id
+function getStationPorts($stationId) {
+    $sql = "SELECT p.port_id, p.state,
+                   cp.charging_point_id,
+                   COUNT(*) OVER () as total_ports,
+                   SUM(CASE WHEN p.state = 'available' THEN 1 ELSE 0 END) OVER () as available_ports
+            FROM Ports p
+            JOIN Charging_Points cp ON p.charging_point_id = cp.charging_point_id
             WHERE cp.station_id = ?
-            GROUP BY cp.charging_point_id";
+            ORDER BY cp.charging_point_id, p.port_id";
             
     return fetchAll($sql, [$stationId]);
 }
@@ -57,7 +57,7 @@ function getChargingPointDetails($chargingPointId) {
                    s.address_municipality, 
                    s.address_civic_num, 
                    s.address_zipcode,
-                   GROUP_CONCAT(p.status) as port_states
+                   GROUP_CONCAT(p.state) as port_states
             FROM Charging_Points cp
             JOIN Stations s ON cp.station_id = s.station_id
             LEFT JOIN Ports p ON cp.charging_point_id = p.charging_point_id
@@ -76,10 +76,10 @@ function getChargingPointDetails($chargingPointId) {
 function getAvailableChargingPoints($stationId) {
     $sql = "SELECT cp.*, 
                    COUNT(p.port_id) as total_ports,
-                   SUM(CASE WHEN p.status = 'available' THEN 1 ELSE 0 END) as available_ports
+                   SUM(CASE WHEN p.state = 'available' THEN 1 ELSE 0 END) as available_ports
             FROM Charging_Points cp
             LEFT JOIN Ports p ON cp.charging_point_id = p.charging_point_id
-            WHERE cp.station_id = ? AND p.status = 'available'
+            WHERE cp.station_id = ? AND p.state = 'available'
             GROUP BY cp.charging_point_id
             HAVING available_ports > 0";
             
